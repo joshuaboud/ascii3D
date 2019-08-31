@@ -79,17 +79,7 @@ void getInput(){
 }
 
 void drawScreen(){
-  // draw floor
   getmaxyx(stdscr,screen.height,screen.width);
-  for (int j = 0; j < screen.height; j++){
-    for (int i = 0; i < screen.width; i++){
-      unsigned char shade = (screen.height - abs(screen.height/2 - j))*NUM_SHADES/screen.height;
-      if(shade < NUM_SHADES)
-        mvadd_wch(j,i,gradient[shade]);
-      else
-        mvadd_wch(j,i,gradient[NUM_SHADES-1]);
-    }
-  }
   // draw walls
   for (int i = 0; i < screen.width; i++){
     double angle = camera.a + (screen.width/2 - i) * FOV;
@@ -103,16 +93,33 @@ void drawScreen(){
     }
     float distance = sqrt((tracerX - camera.x)*(tracerX - camera.x) +
                           (tracerY - camera.y)*(tracerY - camera.y));
+    int shade = ((int)distance - WHT_DST)*NUM_SHADES/MAX_DIST;
+    int wallMask = (MAX_DIST - distance)*screen.height/(MAX_DIST)*0.5;
     for (int j = 0; j < screen.height; j++){
       // print screen one column at a time
-      if(distance > MAX_DIST)
-        continue;
-      if(fabs(j - screen.height/2) + SCR_PLANE < pow(MAX_DIST - distance,2)*screen.height/(MAX_DIST*MAX_DIST)*0.5)
-        mvadd_wch(j,i,gradient[(((int)distance - WHT_DST)*NUM_SHADES/MAX_DIST)]);
-      /*if(fabs(j - screen.height/2) < (MAX_DIST - distance)*screen.height/(MAX_DIST)*0.5)
-        mvadd_wch(j,i,gradient[(((int)distance - WHT_DST)*NUM_SHADES/MAX_DIST)]);*/
+      if(fabs(j - screen.height/2) < wallMask)
+        mvadd_wch(j,i,gradient[shade]);
+      else
+        mvadd_wch(j,i,gradient[NUM_SHADES-1]); // floor
     }
   }
+  // draw map
+  move(0,0);
+  for (int i = 0; i < WORLD_SZ; i++){
+    for (int j = 0; j < WORLD_SZ; j++){
+      switch(world[j][i]){
+      case 1:
+        mvaddch(j,i,'#');
+        break;
+      default:
+        break;
+      }
+    }
+  }
+  mvaddch((int)camera.x,(int)camera.y,'@');
+  int dirX = camera.x + (int)round(cos(camera.a));
+  int dirY = camera.y + (int)round(sin(camera.a));
+  mvaddch(dirX,dirY,'-');
   // draw sprites?
   refresh();
 }
