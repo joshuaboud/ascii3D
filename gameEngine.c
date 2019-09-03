@@ -128,11 +128,13 @@ void drawScreen(){
 double traceDistance(double angle, double *texDist){
   double tracerX = camera.x;
   double tracerY = camera.y;
+  double delX = cos(angle)*TRACER_INC;
+  double delY = sin(angle)*TRACER_INC;
   while(tracerX < MAX_VIEW && tracerY < MAX_VIEW &&
         tracerX >= 0 && tracerY >=0 &&
         world[(int)tracerX][(int)tracerY] == 0){
-    tracerX += cos(angle)*TRACER_INC;
-    tracerY += sin(angle)*TRACER_INC;
+    tracerX += delX;
+    tracerY += delY;
   }
   *texDist = max((tracerX - floor(tracerX)),(tracerY - floor(tracerY)));
   return sqrt((tracerX - camera.x)*(tracerX - camera.x) + (tracerY - camera.y)*(tracerY - camera.y));
