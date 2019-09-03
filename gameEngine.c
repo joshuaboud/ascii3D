@@ -20,6 +20,10 @@ const cchar_t (gradient[])[NUM_SHADES] = {
   {A_DIM,0x20}    // black
 };
 
+int wallTexture[TEX_SIZE] = {
+  -1,0,0,1,1,0,1,0,0,0,1,1,1,0,0,-1
+};
+
 bool running;
 
 ScreenStats screen;
@@ -61,11 +65,15 @@ void getInput(){
   switch(getch()){
   case KEY_UP:
     camera.x += cos(camera.a)*0.1;
+    if(world[(int)camera.x][(int)camera.y] != 0) camera.x -= cos(camera.a)*0.1;
     camera.y += sin(camera.a)*0.1;
+    if(world[(int)camera.x][(int)camera.y] != 0) camera.y -= sin(camera.a)*0.1;
     break;
   case KEY_DOWN:
     camera.x -= cos(camera.a)*0.1;
+    if(world[(int)camera.x][(int)camera.y] != 0) camera.x += cos(camera.a)*0.1;
     camera.y -= sin(camera.a)*0.1;
+    if(world[(int)camera.x][(int)camera.y] != 0) camera.y += sin(camera.a)*0.1;
     break;
   case KEY_RIGHT:
     camera.a -= 0.05;
@@ -82,23 +90,16 @@ void drawScreen(){
   getmaxyx(stdscr,screen.height,screen.width);
   // draw walls
   for (int i = 0; i < screen.width; i++){
-    double angle = camera.a + (screen.width/2 - i) * FOV;
-    double tracerX = camera.x;
-    double tracerY = camera.y;
-    while(tracerX < WORLD_SZ && tracerY < WORLD_SZ &&
-          tracerX >= 0 && tracerY >=0 &&
-          world[(int)tracerX][(int)tracerY] == 0){
-      tracerX += cos(angle)*0.1;
-      tracerY += sin(angle)*0.1;
-    }
-    float distance = sqrt((tracerX - camera.x)*(tracerX - camera.x) +
-                          (tracerY - camera.y)*(tracerY - camera.y));
-    int shade = ((int)distance - WHT_DST)*NUM_SHADES/MAX_DIST;
-    int wallMask = (MAX_DIST - distance)*screen.height/(MAX_DIST)*0.5;
+    double texDist;
+    double angle = camera.a + (screen.width/2 - i)*FOV/screen.width;
+    double distance = traceDistance(angle, &texDist);
+    int shade = (distance < MAX_DIST)?
+    ((int)distance)*NUM_SHADES/MAX_DIST : NUM_SHADES - 1;
+    int wallHeightProjected = (screen.height*WALL_HEIGHT*SCR_PLANE)/(distance);
     for (int j = 0; j < screen.height; j++){
       // print screen one column at a time
-      if(fabs(j - screen.height/2) < wallMask)
-        mvadd_wch(j,i,gradient[shade]);
+      if(fabs(j - screen.height/2) < wallHeightProjected)
+        mvadd_wch(j,i,gradient[texture(texDist,shade)]);
       else
         mvadd_wch(j,i,gradient[NUM_SHADES-1]); // floor
     }
@@ -122,4 +123,31 @@ void drawScreen(){
   mvaddch(dirX,dirY,'-');
   // draw sprites?
   refresh();
+}
+
+double traceDistance(double angle, double *texDist){
+  double tracerX = camera.x;
+  double tracerY = camera.y;
+  while(tracerX < MAX_VIEW && tracerY < MAX_VIEW &&
+        tracerX >= 0 && tracerY >=0 &&
+        world[(int)tracerX][(int)tracerY] == 0){
+    tracerX += cos(angle)*TRACER_INC;
+    tracerY += sin(angle)*TRACER_INC;
+  }
+  *texDist = max((tracerX - floor(tracerX)),(tracerY - floor(tracerY)));
+  return sqrt((tracerX - camera.x)*(tracerX - camera.x) + (tracerY - camera.y)*(tracerY - camera.y));
+}
+
+double max(double a, double b){
+  if(b <= 0.1 || b >= 0.9)
+    return a;
+  else
+    return b;
+}
+
+int texture(double texDist, int shade){
+  shade -= wallTexture[(int)round(texDist*TEX_SIZE)];
+  if(shade < 0) shade = 0;
+  if(shade >= NUM_SHADES) shade = NUM_SHADES - 1;
+  return shade;
 }
