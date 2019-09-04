@@ -1,10 +1,12 @@
 #include "world.h"
+#include "gameEngine.h"
 #include <stdio.h>
 
 unsigned char world[WORLD_SZ][WORLD_SZ] = {{0}};
 
 int initWorld(char *filename){
   FILE *fptr = fopen(filename, "r");
+  if(!fptr) error(OPEN_LVL);
   
   char c;
   int i = 0, j = 0;

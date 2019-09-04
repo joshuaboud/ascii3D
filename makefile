@@ -1,5 +1,5 @@
 TARGET = game
-LIBS = -lm -lncursesw
+LIBS = -lm -lncursesw -pthread
 CC = gcc
 CFLAGS =
 
