@@ -9,12 +9,15 @@
 #define MAX_DIST 15
 #define MAX_VIEW 64
 #define PI 3.1415
-#define SCR_PLANE 7.5
+#define SCR_PLANE 10
 #define TRACER_INC 0.01
 #define WALL_HEIGHT 0.1
 #define TEX_SIZE 16
 #define MAX_KEYS 10
-#define MAP_SZ 7
+#define HUD_SZ 7
+#define WALK_SPEED 10
+#define TURN_SPEED 2*PI
+#define INPUT_DELAY 5000000
 
 enum {THREAD_CREATE, THREAD_JOIN, OPEN_LVL};
 
@@ -43,7 +46,7 @@ void closeGame(void);
 
 int gameLoop(void);
 
-void getInput(void);
+void *threadInput(void *args);
 
 void drawScreen(WINDOW *render, WINDOW *map);
 

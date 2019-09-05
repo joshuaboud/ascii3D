@@ -1,7 +1,7 @@
 TARGET = game
 LIBS = -lm -lncursesw -pthread
 CC = gcc
-CFLAGS =
+CFLAGS = -g
 
 .PHONY: default all clean
 

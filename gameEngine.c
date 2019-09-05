@@ -8,6 +8,7 @@
 #include <math.h>
 #include <pthread.h>
 #include <time.h>
+#include <unistd.h>
 #include "gameEngine.h"
 #include "world.h"
 
@@ -79,39 +80,55 @@ int gameLoop(){
   running = TRUE;
   
   WINDOW *render = newwin(0,0,0,0);
-  WINDOW *map = newwin(MAP_SZ,MAP_SZ,0,0);
+  WINDOW *map = newwin(HUD_SZ,HUD_SZ,0,0);
+  
+  pthread_t inputThread;
+  if(pthread_create(&inputThread, NULL, threadInput, NULL))
+    error(THREAD_CREATE);
   
   while(running){
-    getInput();
     drawScreen(render,map);
   }
+  
+  if(pthread_join(inputThread, NULL))
+    error(THREAD_JOIN);
   
   closeGame();
   return 0;
 }
 
-void getInput(void){
-  switch(getch()){
-  case KEY_UP:
-    camera.x += cos(camera.a)*0.1;
-    if(world[(int)camera.x][(int)camera.y] != 0) camera.x -= cos(camera.a)*0.1;
-    camera.y += sin(camera.a)*0.1;
-    if(world[(int)camera.x][(int)camera.y] != 0) camera.y -= sin(camera.a)*0.1;
-    break;
-  case KEY_DOWN:
-    camera.x -= cos(camera.a)*0.1;
-    if(world[(int)camera.x][(int)camera.y] != 0) camera.x += cos(camera.a)*0.1;
-    camera.y -= sin(camera.a)*0.1;
-    if(world[(int)camera.x][(int)camera.y] != 0) camera.y += sin(camera.a)*0.1;
-    break;
-  case KEY_RIGHT:
-    camera.a -= 0.05;
-    break;
-  case KEY_LEFT:
-    camera.a += 0.05;
-    break;
-  default:
-    break;
+void *threadInput(void *args){
+  clock_t timestamp = clock();
+  struct timespec inputDelay;
+  inputDelay.tv_sec = 0;
+  inputDelay.tv_nsec = INPUT_DELAY;
+  double elapsed;
+  while(running){
+    elapsed = (double)(clock() - timestamp)/CLOCKS_PER_SEC;
+    timestamp = clock();
+    switch(getch()){
+    case KEY_UP:
+      camera.x += cos(camera.a)*elapsed*WALK_SPEED;
+      if(world[(int)camera.x][(int)camera.y] != 0) camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
+      camera.y += sin(camera.a)*elapsed*WALK_SPEED;
+      if(world[(int)camera.x][(int)camera.y] != 0) camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
+      break;
+    case KEY_DOWN:
+      camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
+      if(world[(int)camera.x][(int)camera.y] != 0) camera.x += cos(camera.a)*elapsed*WALK_SPEED;
+      camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
+      if(world[(int)camera.x][(int)camera.y] != 0) camera.y += sin(camera.a)*elapsed*WALK_SPEED;
+      break;
+    case KEY_RIGHT:
+      camera.a -= elapsed*TURN_SPEED;
+      break;
+    case KEY_LEFT:
+      camera.a += elapsed*TURN_SPEED;
+      break;
+    default:
+      break;
+    }
+    nanosleep(&inputDelay, NULL);
   }
 }
 
@@ -119,8 +136,9 @@ void drawScreen(WINDOW *render, WINDOW *map){
   int pthreadFail = 0;
   int lastWidth = screen.width;
   getmaxyx(stdscr,screen.height,screen.width);
-  wresize(render,screen.height-MAP_SZ,screen.width);
-  mvwin(map,screen.height - MAP_SZ,0);
+  screen.height -= HUD_SZ; // render area
+  wresize(render,screen.height,screen.width);
+  mvwin(map,screen.height,0);
   if(!tid || screen.width != lastWidth){ // reallocate
     tid = (pthread_t *)malloc(sizeof(pthread_t)*screen.width);
     args = (thread_args_t *)malloc(sizeof(thread_args_t)*screen.width);
@@ -133,24 +151,24 @@ void drawScreen(WINDOW *render, WINDOW *map){
   for (int i = 0; i < screen.width; i++){
     pthreadFail = pthread_join(tid[i], NULL);
     if(pthreadFail) error(THREAD_JOIN);
-    for (int j = 0; j < screen.height-7; j++){
+    for (int j = 0; j < screen.height; j++){
       // print screen one column at a time
       if(fabs(j - screen.height/2) < args[i].wallHeightProjected)
         mvwadd_wch(render,j,i,gradient[args[i].shade]);
       else
         mvwadd_wch(render,j,i,gradient[NUM_SHADES-1]); // floor
     }
-    wrefresh(render);
   }
+  wrefresh(render);
   // draw map
   wmove(map,0,0);
-  for (int i = 0; i < MAP_SZ; i++){
-    for (int j = 0; j < MAP_SZ; j++){
-      if((int)camera.y + (j - MAP_SZ/2) < 0 && (int)camera.x + (i - MAP_SZ/2) < 0){
+  for (int i = 0; i < HUD_SZ; i++){
+    for (int j = 0; j < HUD_SZ; j++){
+      if((int)camera.y + (j - HUD_SZ/2) < 0 && (int)camera.x + (i - HUD_SZ/2) < 0){
         mvwaddch(map,j,i,'.');
         continue;
       }
-      switch(world[(int)camera.x + (j - MAP_SZ/2)][(int)camera.y + (i - MAP_SZ/2)]){
+      switch(world[(int)camera.x + (j - HUD_SZ/2)][(int)camera.y + (i - HUD_SZ/2)]){
       case 1:
         mvwaddch(map,j,i,'#');
         break;
@@ -160,9 +178,9 @@ void drawScreen(WINDOW *render, WINDOW *map){
       }
     }
   }
-  mvwaddch(map,MAP_SZ/2,MAP_SZ/2,'@');
-  int dirX = MAP_SZ/2 + (int)round(cos(camera.a));
-  int dirY = MAP_SZ/2 + (int)round(sin(camera.a));
+  mvwaddch(map,HUD_SZ/2,HUD_SZ/2,'@');
+  int dirX = HUD_SZ/2 + (int)round(cos(camera.a));
+  int dirY = HUD_SZ/2 + (int)round(sin(camera.a));
   mvwaddch(map,dirX,dirY,'-');
   wrefresh(map);
   // draw sprites?
@@ -200,7 +218,7 @@ double max(double a, double b){
 }
 
 int texture(double texDist, int shade){
-  shade -= wallTexture[(int)round(texDist*TEX_SIZE)];
+  shade -= wallTexture[(int)(texDist*TEX_SIZE)];
   if(shade < 0) shade = 0;
   if(shade >= NUM_SHADES) shade = NUM_SHADES - 1;
   return shade;
