@@ -12,6 +12,10 @@
 #include "gameEngine.h"
 #include "world.h"
 
+#define collisionX (camera.x < 0 || camera.x >= WORLD_SZ || world[(int)camera.x][(int)camera.y] != EMPTY)
+  
+#define collisionY (camera.y < 0 || camera.y >= WORLD_SZ || world[(int)camera.x][(int)camera.y] != EMPTY)
+
 const cchar_t (gradient[])[NUM_SHADES] = {
   {A_BOLD,0x2588}, // white
   {A_BOLD,0x2593},
@@ -26,6 +30,11 @@ const cchar_t (gradient[])[NUM_SHADES] = {
 int wallTexture[TEX_SIZE] = {
   -1,0,0,1,1,0,1,0,0,0,1,1,1,0,0,-1
 };
+
+char compass[COMPASS_SZ] = {
+  'S',' ','E',' ','N',' ','W',' '
+};
+  
 
 bool running;
 
@@ -48,6 +57,10 @@ void error(int err){
 }
 
 int initGame(){
+  camera.x = 0.5;
+  camera.y = 0.5;
+  camera.a = initWorld();
+  
   setlocale(LC_ALL, "");
   initscr(); // initialize ncurses screen
   start_color();
@@ -59,11 +72,7 @@ int initGame(){
   keypad(stdscr,TRUE);
   cbreak();
   
-  camera.x = 1;
-  camera.y = 1;
-  camera.a = PI/2;
-  
-  initWorld("level1.dat");
+  //raw(); // check if input faster - needs signint handler
 }
 
 void closeGame(){
@@ -81,13 +90,14 @@ int gameLoop(){
   
   WINDOW *render = newwin(0,0,0,0);
   WINDOW *map = newwin(HUD_SZ,HUD_SZ,0,0);
+  WINDOW *comp = newwin(2,COMPASS_SZ*4,0,0);
   
   pthread_t inputThread;
   if(pthread_create(&inputThread, NULL, threadInput, NULL))
     error(THREAD_CREATE);
   
   while(running){
-    drawScreen(render,map);
+    drawScreen(render,map,comp);
   }
   
   if(pthread_join(inputThread, NULL))
@@ -109,15 +119,15 @@ void *threadInput(void *args){
     switch(getch()){
     case KEY_UP:
       camera.x += cos(camera.a)*elapsed*WALK_SPEED;
-      if(world[(int)camera.x][(int)camera.y] != 0) camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
+      if(collisionX) camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
       camera.y += sin(camera.a)*elapsed*WALK_SPEED;
-      if(world[(int)camera.x][(int)camera.y] != 0) camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
+      if(collisionY) camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
       break;
     case KEY_DOWN:
       camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
-      if(world[(int)camera.x][(int)camera.y] != 0) camera.x += cos(camera.a)*elapsed*WALK_SPEED;
+      if(collisionX) camera.x += cos(camera.a)*elapsed*WALK_SPEED;
       camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
-      if(world[(int)camera.x][(int)camera.y] != 0) camera.y += sin(camera.a)*elapsed*WALK_SPEED;
+      if(collisionY) camera.y += sin(camera.a)*elapsed*WALK_SPEED;
       break;
     case KEY_RIGHT:
       camera.a -= elapsed*TURN_SPEED;
@@ -128,17 +138,20 @@ void *threadInput(void *args){
     default:
       break;
     }
+    if(camera.a > 2*PI) camera.a -= 2*PI;
+    if(camera.a < 0) camera.a += 2*PI;
     nanosleep(&inputDelay, NULL);
   }
 }
 
-void drawScreen(WINDOW *render, WINDOW *map){
+void drawScreen(WINDOW *render, WINDOW *map, WINDOW *comp){
   int pthreadFail = 0;
   int lastWidth = screen.width;
   getmaxyx(stdscr,screen.height,screen.width);
   screen.height -= HUD_SZ; // render area
   wresize(render,screen.height,screen.width);
   mvwin(map,screen.height,0);
+  mvwin(comp,screen.height + 1,HUD_SZ + 1);
   if(!tid || screen.width != lastWidth){ // reallocate
     tid = (pthread_t *)malloc(sizeof(pthread_t)*screen.width);
     args = (thread_args_t *)malloc(sizeof(thread_args_t)*screen.width);
@@ -183,6 +196,12 @@ void drawScreen(WINDOW *render, WINDOW *map){
   int dirY = HUD_SZ/2 + (int)round(sin(camera.a));
   mvwaddch(map,dirX,dirY,'-');
   wrefresh(map);
+  // draw compass
+  for(int i = 0; i < COMPASS_SZ - 1; i++){
+    mvwaddch(comp,0,i,compass[(COMPASS_SZ + (int)round((camera.a*COMPASS_SZ)/(2*PI)) - i + 3)%(COMPASS_SZ)]);
+    mvwaddch(comp,1,COMPASS_SZ/2 - 1,'^');
+  }
+  wrefresh(comp);
   // draw sprites?
 }
 

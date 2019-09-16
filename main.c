@@ -1,9 +1,7 @@
 #include "gameEngine.h"
-
-#define DEBUG 1
+#include <stdio.h>
 
 int main(int argc, char **argv){
-  
   initGame();
   
   gameLoop();

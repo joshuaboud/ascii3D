@@ -18,6 +18,7 @@
 #define WALK_SPEED 10
 #define TURN_SPEED 2*PI
 #define INPUT_DELAY 5000000
+#define COMPASS_SZ 8
 
 enum {THREAD_CREATE, THREAD_JOIN, OPEN_LVL};
 
@@ -48,7 +49,7 @@ int gameLoop(void);
 
 void *threadInput(void *args);
 
-void drawScreen(WINDOW *render, WINDOW *map);
+void drawScreen(WINDOW *render, WINDOW *map, WINDOW *comp);
 
 void *threadTrace(void *arguments);
 
