@@ -8,9 +8,11 @@
 #include <math.h>
 #include <pthread.h>
 #include <time.h>
-#include <unistd.h>
+#include <fcntl.h>
 #include "gameEngine.h"
 #include "world.h"
+#include "keyboard.h"
+#include "settings.h"
 
 #define collisionX (camera.x < 0 || camera.x >= WORLD_SZ || world[(int)camera.x][(int)camera.y] != EMPTY)
   
@@ -113,34 +115,74 @@ void *threadInput(void *args){
   inputDelay.tv_sec = 0;
   inputDelay.tv_nsec = INPUT_DELAY;
   double elapsed;
-  while(running){
-    elapsed = (double)(clock() - timestamp)/CLOCKS_PER_SEC;
-    timestamp = clock();
-    switch(getch()){
-    case KEY_UP:
-      camera.x += cos(camera.a)*elapsed*WALK_SPEED;
-      if(collisionX) camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
-      camera.y += sin(camera.a)*elapsed*WALK_SPEED;
-      if(collisionY) camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
-      break;
-    case KEY_DOWN:
-      camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
-      if(collisionX) camera.x += cos(camera.a)*elapsed*WALK_SPEED;
-      camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
-      if(collisionY) camera.y += sin(camera.a)*elapsed*WALK_SPEED;
-      break;
-    case KEY_RIGHT:
-      camera.a -= elapsed*TURN_SPEED;
-      break;
-    case KEY_LEFT:
-      camera.a += elapsed*TURN_SPEED;
-      break;
-    default:
-      break;
+  switch(settings.KBorSTDIN){
+  case KB:{
+    int kbdev = open("/dev/input/event0",O_RDONLY);
+    int flags = fcntl(kbdev, F_GETFL, 0);
+    fcntl(kbdev, F_SETFL, flags | O_NONBLOCK);
+    while(running){
+      elapsed = (double)(clock() - timestamp)/CLOCKS_PER_SEC;
+      timestamp = clock();
+      
+      proc_kb_event(kbdev);
+      
+      if(keysDown[keyUP]){
+        camera.x += cos(camera.a)*elapsed*WALK_SPEED;
+        if(collisionX) camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
+        camera.y += sin(camera.a)*elapsed*WALK_SPEED;
+        if(collisionY) camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
+      }
+      if(keysDown[keyDOWN]){
+        camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
+        if(collisionX) camera.x += cos(camera.a)*elapsed*WALK_SPEED;
+        camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
+        if(collisionY) camera.y += sin(camera.a)*elapsed*WALK_SPEED;
+      }
+      if(keysDown[keyRIGHT]){
+        camera.a -= elapsed*TURN_SPEED;
+      }
+      if(keysDown[keyLEFT]){
+        camera.a += elapsed*TURN_SPEED;
+      }
+      
+      if(camera.a > 2*PI) camera.a -= 2*PI;
+      if(camera.a < 0) camera.a += 2*PI;
+      nanosleep(&inputDelay, NULL);
     }
-    if(camera.a > 2*PI) camera.a -= 2*PI;
-    if(camera.a < 0) camera.a += 2*PI;
-    nanosleep(&inputDelay, NULL);
+    }break;
+  case STDIN:
+    while(running){
+      elapsed = (double)(clock() - timestamp)/CLOCKS_PER_SEC;
+      timestamp = clock();
+      
+      switch(getch()){
+      case KEY_UP:
+        camera.x += cos(camera.a)*elapsed*WALK_SPEED;
+        if(collisionX) camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
+        camera.y += sin(camera.a)*elapsed*WALK_SPEED;
+        if(collisionY) camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
+        break;
+      case KEY_DOWN:
+        camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
+        if(collisionX) camera.x += cos(camera.a)*elapsed*WALK_SPEED;
+        camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
+        if(collisionY) camera.y += sin(camera.a)*elapsed*WALK_SPEED;
+        break;
+      case KEY_RIGHT:
+        camera.a -= elapsed*TURN_SPEED;
+        break;
+      case KEY_LEFT:
+        camera.a += elapsed*TURN_SPEED;
+        break;
+      default:
+        break;
+      }
+      
+      if(camera.a > 2*PI) camera.a -= 2*PI;
+      if(camera.a < 0) camera.a += 2*PI;
+      nanosleep(&inputDelay, NULL);
+    }
+    break;
   }
 }
 
@@ -201,6 +243,7 @@ void drawScreen(WINDOW *render, WINDOW *map, WINDOW *comp){
     mvwaddch(comp,0,i,compass[(COMPASS_SZ + (int)round((camera.a*COMPASS_SZ)/(2*PI)) - i + 3)%(COMPASS_SZ)]);
     mvwaddch(comp,1,COMPASS_SZ/2 - 1,'^');
   }
+  if(keysDown[keySPACE]) mvwaddstr(comp,0,0,"POW!");
   wrefresh(comp);
   // draw sprites?
 }

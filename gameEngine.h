@@ -15,9 +15,9 @@
 #define TEX_SIZE 16
 #define MAX_KEYS 10
 #define HUD_SZ 7
-#define WALK_SPEED 10
-#define TURN_SPEED 2*PI
-#define INPUT_DELAY 5000000
+#define WALK_SPEED 1
+#define TURN_SPEED 0.5
+#define INPUT_DELAY 5000
 #define COMPASS_SZ 8
 
 enum {THREAD_CREATE, THREAD_JOIN, OPEN_LVL};
