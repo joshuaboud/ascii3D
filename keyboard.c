@@ -1,19 +1,15 @@
 #include "keyboard.h"
 #include "gameEngine.h" // errors
 #include <unistd.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <linux/input.h>
 #include <fcntl.h>
 #include <pthread.h>
-#include <time.h>
 
 int keysDown[NUM_KEYS] = {0};
 
 void init_kb(void){
-  int kbdev = open("/dev/input/event0",O_RDONLY);
-  int flags = fcntl(kbdev, F_GETFL, 0);
-  fcntl(kbdev, F_SETFL, flags | O_NONBLOCK);
+  int kbdev = open("/dev/input/event0",O_RDONLY | O_NONBLOCK);
   T_ARGS args = {kbdev};
   pthread_t kbThread;
   if(pthread_create(&kbThread, NULL, proc_kb_event, (void *)&args))
