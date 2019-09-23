@@ -1,6 +1,6 @@
 #define NCURSES_WIDECHAR 1
 
-#include <ncursesw/ncurses.h>
+#include <ncurses.h>
 #include <locale.h>
 #include <wchar.h>
 #include <stdbool.h>
@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <fcntl.h>
+#include <linux/input.h>
 #include "gameEngine.h"
 #include "world.h"
 #include "keyboard.h"
@@ -59,6 +60,7 @@ void error(int err){
 }
 
 int initGame(){
+  running = TRUE;
   camera.x = 0.5;
   camera.y = 0.5;
   camera.a = initWorld();
@@ -74,6 +76,8 @@ int initGame(){
   keypad(stdscr,TRUE);
   cbreak();
   
+  init_kb();
+  
   //raw(); // check if input faster - needs signint handler
 }
 
@@ -88,102 +92,45 @@ void closeGame(){
 
 int gameLoop(){
   
-  running = TRUE;
-  
   WINDOW *render = newwin(0,0,0,0);
   WINDOW *map = newwin(HUD_SZ,HUD_SZ,0,0);
   WINDOW *comp = newwin(2,COMPASS_SZ*4,0,0);
   
-  pthread_t inputThread;
-  if(pthread_create(&inputThread, NULL, threadInput, NULL))
-    error(THREAD_CREATE);
+  clock_t timestamp = clock();
   
   while(running){
+    moveCamera((double)(clock() - timestamp)/CLOCKS_PER_SEC);
+    timestamp = clock();
+    // simulate enemies
     drawScreen(render,map,comp);
   }
-  
-  if(pthread_join(inputThread, NULL))
-    error(THREAD_JOIN);
   
   closeGame();
   return 0;
 }
 
-void *threadInput(void *args){
-  clock_t timestamp = clock();
-  struct timespec inputDelay;
-  inputDelay.tv_sec = 0;
-  inputDelay.tv_nsec = INPUT_DELAY;
-  double elapsed;
-  switch(settings.KBorSTDIN){
-  case KB:{
-    int kbdev = open("/dev/input/event0",O_RDONLY);
-    int flags = fcntl(kbdev, F_GETFL, 0);
-    fcntl(kbdev, F_SETFL, flags | O_NONBLOCK);
-    while(running){
-      elapsed = (double)(clock() - timestamp)/CLOCKS_PER_SEC;
-      timestamp = clock();
-      
-      proc_kb_event(kbdev);
-      
-      if(keysDown[keyUP]){
-        camera.x += cos(camera.a)*elapsed*WALK_SPEED;
-        if(collisionX) camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
-        camera.y += sin(camera.a)*elapsed*WALK_SPEED;
-        if(collisionY) camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
-      }
-      if(keysDown[keyDOWN]){
-        camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
-        if(collisionX) camera.x += cos(camera.a)*elapsed*WALK_SPEED;
-        camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
-        if(collisionY) camera.y += sin(camera.a)*elapsed*WALK_SPEED;
-      }
-      if(keysDown[keyRIGHT]){
-        camera.a -= elapsed*TURN_SPEED;
-      }
-      if(keysDown[keyLEFT]){
-        camera.a += elapsed*TURN_SPEED;
-      }
-      
-      if(camera.a > 2*PI) camera.a -= 2*PI;
-      if(camera.a < 0) camera.a += 2*PI;
-      nanosleep(&inputDelay, NULL);
-    }
-    }break;
-  case STDIN:
-    while(running){
-      elapsed = (double)(clock() - timestamp)/CLOCKS_PER_SEC;
-      timestamp = clock();
-      
-      switch(getch()){
-      case KEY_UP:
-        camera.x += cos(camera.a)*elapsed*WALK_SPEED;
-        if(collisionX) camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
-        camera.y += sin(camera.a)*elapsed*WALK_SPEED;
-        if(collisionY) camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
-        break;
-      case KEY_DOWN:
-        camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
-        if(collisionX) camera.x += cos(camera.a)*elapsed*WALK_SPEED;
-        camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
-        if(collisionY) camera.y += sin(camera.a)*elapsed*WALK_SPEED;
-        break;
-      case KEY_RIGHT:
-        camera.a -= elapsed*TURN_SPEED;
-        break;
-      case KEY_LEFT:
-        camera.a += elapsed*TURN_SPEED;
-        break;
-      default:
-        break;
-      }
-      
-      if(camera.a > 2*PI) camera.a -= 2*PI;
-      if(camera.a < 0) camera.a += 2*PI;
-      nanosleep(&inputDelay, NULL);
-    }
-    break;
+void moveCamera(double elapsed){
+  if(keysDown[KEY_UP]){
+    camera.x += cos(camera.a)*elapsed*WALK_SPEED;
+    if(collisionX) camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
+    camera.y += sin(camera.a)*elapsed*WALK_SPEED;
+    if(collisionY) camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
   }
+  if(keysDown[KEY_DOWN]){
+    camera.x -= cos(camera.a)*elapsed*WALK_SPEED;
+    if(collisionX) camera.x += cos(camera.a)*elapsed*WALK_SPEED;
+    camera.y -= sin(camera.a)*elapsed*WALK_SPEED;
+    if(collisionY) camera.y += sin(camera.a)*elapsed*WALK_SPEED;
+  }
+  if(keysDown[KEY_RIGHT]){
+    camera.a -= elapsed*TURN_SPEED;
+  }
+  if(keysDown[KEY_LEFT]){
+    camera.a += elapsed*TURN_SPEED;
+  }
+  
+  if(camera.a > 2*PI) camera.a -= 2*PI;
+  if(camera.a < 0) camera.a += 2*PI;
 }
 
 void drawScreen(WINDOW *render, WINDOW *map, WINDOW *comp){
@@ -243,7 +190,7 @@ void drawScreen(WINDOW *render, WINDOW *map, WINDOW *comp){
     mvwaddch(comp,0,i,compass[(COMPASS_SZ + (int)round((camera.a*COMPASS_SZ)/(2*PI)) - i + 3)%(COMPASS_SZ)]);
     mvwaddch(comp,1,COMPASS_SZ/2 - 1,'^');
   }
-  if(keysDown[keySPACE]) mvwaddstr(comp,0,0,"POW!");
+  if(keysDown[KEY_SPACE]) mvwaddstr(comp,0,0,"POW!");
   wrefresh(comp);
   // draw sprites?
 }

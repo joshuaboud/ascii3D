@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ncursesw/ncurses.h>
+#include <ncurses.h>
 
 #define WALL 1 // color pair
 #define FLOOR 2
@@ -17,8 +17,9 @@
 #define HUD_SZ 7
 #define WALK_SPEED 1
 #define TURN_SPEED 0.5
-#define INPUT_DELAY 5000
 #define COMPASS_SZ 8
+
+extern bool running;
 
 enum {THREAD_CREATE, THREAD_JOIN, OPEN_LVL};
 
@@ -47,7 +48,7 @@ void closeGame(void);
 
 int gameLoop(void);
 
-void *threadInput(void *args);
+void moveCamera(double elapsed);
 
 void drawScreen(WINDOW *render, WINDOW *map, WINDOW *comp);
 
