@@ -63,7 +63,9 @@ int initGame(){
   running = TRUE;
   camera.x = 0.5;
   camera.y = 0.5;
-  camera.a = initWorld();
+  camera.a = 0;
+  
+  initWorld();
   
   setlocale(LC_ALL, "");
   initscr(); // initialize ncurses screen
@@ -166,8 +168,9 @@ void drawScreen(WINDOW *render, WINDOW *map, WINDOW *comp){
   wmove(map,0,0);
   for (int i = 0; i < HUD_SZ; i++){
     for (int j = 0; j < HUD_SZ; j++){
-      if((int)camera.y + (j - HUD_SZ/2) < 0 && (int)camera.x + (i - HUD_SZ/2) < 0){
-        mvwaddch(map,j,i,'.');
+      if((int)camera.y + (j - HUD_SZ/2) < 0 || (int)camera.x + (i - HUD_SZ/2) < 0 ||
+         (int)camera.y + (j - HUD_SZ/2) >= WORLD_SZ || (int)camera.x + (i - HUD_SZ/2) >= WORLD_SZ){
+        mvwaddch(map,j,i,'#');
         continue;
       }
       switch(world[(int)camera.x + (j - HUD_SZ/2)][(int)camera.y + (i - HUD_SZ/2)]){
@@ -181,9 +184,6 @@ void drawScreen(WINDOW *render, WINDOW *map, WINDOW *comp){
     }
   }
   mvwaddch(map,HUD_SZ/2,HUD_SZ/2,'@');
-  int dirX = HUD_SZ/2 + (int)round(cos(camera.a));
-  int dirY = HUD_SZ/2 + (int)round(sin(camera.a));
-  mvwaddch(map,dirX,dirY,'-');
   wrefresh(map);
   // draw compass
   for(int i = 0; i < COMPASS_SZ - 1; i++){

@@ -11,7 +11,7 @@
 #define PI 3.1415
 #define SCR_PLANE 10
 #define TRACER_INC 0.01
-#define WALL_HEIGHT 0.1
+#define WALL_HEIGHT 0.05
 #define TEX_SIZE 16
 #define MAX_KEYS 10
 #define HUD_SZ 7
