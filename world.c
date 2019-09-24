@@ -37,7 +37,7 @@ void recursiveGen(int x, int y){
         y -= 2;
         break;
       }
-      if(x < 0 || y < 0 || x >= WORLD_SZ || y >= WORLD_SZ || world[y][x] == EMPTY){
+      if(!IN_BOUNDS(x,y) || world[y][x] == EMPTY){
         x = oldX;
         y = oldY;
       }else{

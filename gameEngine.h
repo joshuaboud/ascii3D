@@ -6,12 +6,12 @@
 #define FLOOR 2
 #define NUM_SHADES 8 // number of shaded chars
 #define FOV (PI/2)
-#define MAX_DIST 15
+#define MAX_DIST 5
 #define MAX_VIEW 64
 #define PI 3.1415
-#define SCR_PLANE 10
+#define SCR_PLANE 1
 #define TRACER_INC 0.01
-#define WALL_HEIGHT 0.05
+#define WALL_HEIGHT 0.5
 #define TEX_SIZE 16
 #define MAX_KEYS 10
 #define HUD_SZ 7
