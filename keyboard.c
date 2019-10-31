@@ -44,8 +44,6 @@ void *proc_kb_event(void *t_args){
   input_event *event = (input_event *)malloc(sizeof(input_event));
   while(!thread_with_keyboard){
     if(read(fd, event, sizeof(input_event)) && event->type == EV_KEY){
-      //int flags = fcntl(fd, F_GETFL, 0);
-      //fcntl(fd,F_SETFL, flags | O_NONBLOCK); // update to non-blocking read
       thread_with_keyboard = pthread_self();
       break;
     }
