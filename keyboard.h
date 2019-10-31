@@ -21,3 +21,5 @@ typedef struct{
 void init_kb(void);
 
 void *proc_kb_event(void *t_args);
+
+int isDirectory(const char *path);

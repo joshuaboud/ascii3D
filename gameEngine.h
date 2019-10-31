@@ -21,7 +21,7 @@
 
 extern bool running;
 
-enum {THREAD_CREATE, THREAD_JOIN, OPEN_LVL};
+enum {THREAD_CREATE, THREAD_JOIN, OPEN_LVL, OPEN_DEV_DIR};
 
 typedef struct{
   int width;

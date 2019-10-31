@@ -49,7 +49,8 @@ Camera camera;
 const char *errors[] = {
   "Failed to create thread.",
   "Failed to join thread.",
-  "Error opening world file."
+  "Error opening world file.",
+  "Error opening /dev/input dir."
 };
 
 void error(int err){
@@ -77,6 +78,9 @@ int initGame(){
   noecho();
   keypad(stdscr,TRUE);
   cbreak();
+  
+  printw("Press Enter to Start");
+  refresh();
   
   init_kb();
   
